@@ -10,18 +10,6 @@ LOG_MODULE_REGISTER(neopixel);
 
 #include "neopixel.h"
 
-#define STRIP_NODE              DT_ALIAS(led_strip)
-
-#if DT_NODE_HAS_PROP(DT_ALIAS(led_strip), chain_length)
-#define STRIP_NUM_PIXELS        DT_PROP(DT_ALIAS(led_strip), chain_length)
-#else
-#error Unable to determine length of LED strip
-#endif
-
-#define DELAY_TIME K_MSEC(CONFIG_SAMPLE_LED_UPDATE_DELAY)
-
-#define RGB(_r, _g, _b) { .r = (_r), .g = (_g), .b = (_b) }
-
 static const struct led_rgb colors[] = {
         RGB(0x0f, 0x00, 0x00), /* red */
         RGB(0x00, 0x0f, 0x00), /* green */
@@ -35,10 +23,10 @@ static const struct device *const strip = DEVICE_DT_GET(STRIP_NODE);
 int neopixel_init(void) {
   if (device_is_ready(strip)) {
     LOG_INF("Found LED strip device %s", strip->name);
-    return -1;
+    return 0;
   } else {
     LOG_ERR("LED strip device %s is not ready", strip->name);
-    return 0;
+    return -1;
   }
 }
 
@@ -56,4 +44,16 @@ void neopixel_update(const pixel_t* _pixels, size_t cnt) {
 
   color = (color + 1) % ARRAY_SIZE(colors);
   cursor = (cursor + 1) % ARRAY_SIZE(pixels);
+}
+
+void neopixel_fromFloats(const float32_t* fpix) {
+  for (size_t i = 0; i < STRIP_NUM_PIXELS; ++i) {
+    struct led_rgb *px = pixels + i;
+    int val = (int)(fpix[i] * 256);
+    if (val > 255) {
+      val = 255;
+    }
+    px->r = px->g = px->b = val;
+  }
+  led_strip_update_rgb(strip, pixels, STRIP_NUM_PIXELS);
 }

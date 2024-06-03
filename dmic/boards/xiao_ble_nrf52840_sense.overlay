@@ -1,4 +1,10 @@
 #include <zephyr/dt-bindings/led/led.h>
+/*
+#include ../nrf52-bindings.h
+#define SPI_FREQ    4000000
+#define ZERO_FRAME  0x40
+#define ONE_FRAME   0x70
+*/
 
 / {
         aliases {
@@ -9,35 +15,31 @@
 	};
 };
 
-&pinctrl {
-        i2s0_default_alt: i2s0_default_alt {
-                group1 {
-                        /* Default I2S config for the nRF52840, P1.13 is the output */
-                        psels = <NRF_PSEL(I2S_SCK_M, 1, 15)>,
-                                <NRF_PSEL(I2S_LRCK_M, 1, 12)>,
-                                <NRF_PSEL(I2S_SDOUT, 1, 13)>,
-                                <NRF_PSEL(I2S_SDIN, 1, 14)>;
-                };
-        };
-};
 
-i2s_led: &i2s0 {
-        status = "okay";
-        pinctrl-0 = <&i2s0_default_alt>;
-        pinctrl-names = "default";
+&spi2 { /* MOSI on P1.15 */
+        compatible = "nordic,nrf-spim";
+        led_strip: ws2812@0 {
+                compatible = "worldsemi,ws2812-spi";
 
-        led_strip: ws2812 {
-                compatible = "worldsemi,ws2812-i2s";
+                /* SPI */
+                reg = <0>; /* ignored, but necessary for SPI bindings */
+                spi-max-frequency = <4000000>;
 
-                i2s-dev = <&i2s_led>;
-                chain-length = <42>; /* arbitrary; change at will */
+                /* WS2812 */
+                chain-length = <80>; /* arbitrary; change at will */
                 color-mapping = <LED_COLOR_ID_GREEN
-                                        LED_COLOR_ID_RED
-                                        LED_COLOR_ID_BLUE>;
-                reset-delay = <500>;
+                                 LED_COLOR_ID_RED
+                                 LED_COLOR_ID_BLUE>;
+                spi-one-frame = <0x70>;
+                spi-zero-frame = <0x40>;
         };
 };
 
 dmic_dev: &pdm0 {
 	status = "okay";
+	queue-size = <4>;
+};
+
+&timer0 {
+        status = "okay";
 };
