@@ -13,6 +13,7 @@
 
 #include "analyzer.h"
 #include "neopixel.h"
+#include "battery.h"
 
 LOG_MODULE_REGISTER(dmic_sample);
 
@@ -21,7 +22,7 @@ static const struct gpio_dt_spec led1_gpio = GPIO_DT_SPEC_GET(DT_ALIAS(led1), gp
 static const struct gpio_dt_spec led2_gpio __UNUSED = GPIO_DT_SPEC_GET(DT_ALIAS(led2), gpios);
 
 //#define MAX_SAMPLE_RATE  16000
-#define MAX_SAMPLE_RATE  8000
+#define MAX_SAMPLE_RATE  SAMPLE_RATE
 #define SAMPLE_BIT_WIDTH 16
 #define BYTES_PER_SAMPLE sizeof(int16_t)
 /* Milliseconds to wait for a block to be read. */
@@ -77,11 +78,20 @@ static int do_pdm_transfer(const struct device *dmic_dev,
 			return ret;
 		}
                 gpio_pin_set_dt(&led1_gpio, i & 1);
-
-                //LOG_INF("%d - got buffer %p of %u bytes", i, buffer, size);
+		
+		bool battCheck = !(i % 255);
+                if (battCheck) {
+                  battery_measure_enable(true);
+		}
+		//LOG_INF("%d - got buffer %p of %u bytes", i, buffer, size);
 		analyzer_process(buffer, size);
 		//neopixel_update(NULL, 0);
 		k_mem_slab_free(&mem_slab, buffer);
+                if (battCheck) {
+		  int32_t vBat = battery_sample();
+                  battery_measure_enable(false);
+		  LOG_INF("vBAT: %u mV\n", vBat);
+		}
 	}
 
 	ret = dmic_trigger(dmic_dev, DMIC_TRIGGER_STOP);
@@ -109,9 +119,16 @@ static void modules_init() {
       k_sleep(K_SECONDS(1));
     }
   }
+#if 0
+  if (adc_init() != 0) {
+    for(;;) {
+      LOG_ERR("neopixel_init failed!\n");
+      k_sleep(K_SECONDS(1));
+    }
+  }
+#endif
   LOG_INF("modules_init done\n");
 }
-
 
 #include <zephyr/drivers/counter.h>
 
@@ -151,6 +168,7 @@ void timer_init() {
 
 int main(void)
 {
+	k_sleep(K_SECONDS(5));
 	LOG_ERR("LOG_ERR\n");
 	printk("Start main\n");
 	LOG_INF("LOG_INF");
@@ -163,12 +181,11 @@ int main(void)
                 return 0;
         }
 	LOG_ERR("led1_gpio\n");
-	k_sleep(K_SECONDS(1));
         gpio_pin_configure_dt(&led1_gpio, GPIO_OUTPUT_INACTIVE);
 	modules_init();
+	//adc_test();
 	gpio_pin_set_dt(&led1_gpio, 1);
 	LOG_ERR("Start dmic\n");
-	k_sleep(K_SECONDS(1));
 
 	LOG_INF("DMIC sample");
 

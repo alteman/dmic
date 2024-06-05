@@ -46,10 +46,17 @@ void neopixel_update(const pixel_t* _pixels, size_t cnt) {
   cursor = (cursor + 1) % ARRAY_SIZE(pixels);
 }
 
+static float32_t lastValues[STRIP_NUM_PIXELS] = {0};
+
 void neopixel_fromFloats(const float32_t* fpix) {
   for (size_t i = 0; i < STRIP_NUM_PIXELS; ++i) {
     struct led_rgb *px = pixels + i;
-    int val = (int)(fpix[i] * 256);
+    if (fpix[i] > lastValues[i]) {
+      lastValues[i] = lastValues[i] * 0.4f + fpix[i] * 0.6f;
+    } else {
+      lastValues[i] = lastValues[i] * 0.9f + fpix[i] * 0.1f;
+    }
+    int val = (int)(lastValues[i] * 256);
     if (val > 255) {
       val = 255;
     }
